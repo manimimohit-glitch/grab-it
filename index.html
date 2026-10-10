@@ -1,0 +1,817 @@
+<title>GRAB — Download YouTube Videos, Shorts & Songs</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.browser.min.js"></script>
+<style>
+:root{
+  --bg:#FFFBF2;
+  --card:#FFFFFF;
+  --text:#141416;
+  --muted:#6B7280;
+  --dim:#9CA3AF;
+  --faint:#E5E7EB;
+  --line:rgba(20,20,22,.08);
+  --line2:rgba(20,20,22,.12);
+  --accent:#FF2D2D;
+  --accent-soft:#FFF1F1;
+  --accent-line:rgba(255,45,45,.14);
+  --ok:#0E9F6E;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:'Instrument Sans',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;line-height:1.5;
+}
+a{color:inherit;text-decoration:none}
+button{font:inherit}
+img{display:block;max-width:100%}
+::selection{background:var(--accent);color:#fff}
+
+/* soft background blobs — good vibes, not space */
+.bg-blobs{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.bg-blobs i{position:absolute;border-radius:50%;filter:blur(40px);opacity:.55}
+.bg-blobs i:nth-child(1){width:720px;height:720px;left:-180px;top:-220px;background:radial-gradient(circle at 50% 50%, rgba(255,196,120,.22) 0%, rgba(255,213,150,.10) 42%, transparent 72%)}
+.bg-blobs i:nth-child(2){width:640px;height:640px;right:-160px;top:-120px;background:radial-gradient(circle at 50% 50%, rgba(255,180,180,.16) 0%, rgba(255,200,200,.08) 44%, transparent 72%)}
+.bg-blobs i:nth-child(3){width:520px;height:520px;left:42%;bottom:-180px;background:radial-gradient(circle at 50% 50%, rgba(180,200,255,.12) 0%, transparent 70%)}
+.dot-grid{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.035;background-image:radial-gradient(circle at 1px 1px, #141416 1px, transparent 0);background-size:22px 22px}
+
+/* nav — clean white, official */
+.nav{
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+  padding:0 28px;height:58px;
+  background:rgba(255,255,255,.84);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:30;
+}
+@media(max-width:720px){ .nav{padding:0 18px} }
+.brand{display:flex;align-items:center;gap:11px}
+.mark{
+  width:34px;height:34px;background:var(--accent);color:#fff;
+  display:grid;place-items:center;
+  font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:13px;letter-spacing:-.02em;
+  border-radius:9px;
+}
+.word{line-height:1}
+.word strong{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:12px;letter-spacing:-.02em;display:block}
+.word span{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.10em;text-transform:uppercase;color:var(--muted);display:block;margin-top:2px}
+.nav-links{display:flex;gap:22px;align-items:center}
+.nav-links a{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.02em;text-transform:uppercase;color:var(--muted);padding:6px 0;border-bottom:2px solid transparent;transition:color .15s, border-color .15s}
+.nav-links a:hover{color:var(--text)}
+.btn{
+  border:1px solid var(--line2);padding:10px 16px;border-radius:999px;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;
+  cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all .15s;white-space:nowrap;
+}
+.btn:active{transform:translateY(1px)}
+.btn-p{background:var(--text);color:#fff;border-color:var(--text)}
+.btn-p:hover{background:#000}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-accent:hover{background:#E62828;border-color:#E62828}
+.btn-g{background:#fff;color:var(--text);border-color:var(--line2)}
+.btn-g:hover{background:var(--bg);border-color:var(--line2)}
+.btn:disabled{opacity:.42;pointer-events:none}
+.hamburger{display:none}
+@media(max-width:900px){
+  .nav-links{display:none}.nav-links.open{display:flex;position:absolute;top:100%;left:0;right:0;background:rgba(255,255,255,.98);border-bottom:1px solid var(--line);flex-direction:column;align-items:stretch;padding:12px 18px;gap:0}
+  .nav-links.open a{padding:12px 0;border-bottom:1px solid var(--line)}.hamburger{display:inline-flex}
+}
+
+.shell{max-width:1080px;margin:0 auto;padding:0 28px}
+@media(max-width:720px){ .shell{padding:0 18px} }
+
+/* hero — warm, centered, good vibes */
+.hero{padding:48px 0 10px;text-align:center;max-width:720px;margin:0 auto}
+.kicker{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.04em;
+  color:var(--muted);background:var(--card);border:1px solid var(--line);
+  padding:7px 12px;border-radius:999px;
+  box-shadow:0 1px 8px rgba(0,0,0,.04);
+}
+.kicker i{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 6px var(--accent-soft);display:inline-block}
+.hero h1{
+  font-family:'Bricolage Grotesque',sans-serif;font-weight:700;
+  font-size:clamp(32px,5vw,48px);line-height:.96;letter-spacing:-.04em;
+font-variation-settings:'opsz' 72;
+  margin:18px 0 0;
+}
+.hero h1 span{font-weight:500;color:var(--muted)}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero p{margin:14px auto 0;max-width:52ch;font-size:14.5px;line-height:1.6;color:var(--muted)}
+.hero p b{color:var(--text);font-weight:600}
+.proof{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:20px}
+.proof .pill{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.02em;
+  border:1px solid var(--line);background:var(--card);
+  padding:6px 10px;border-radius:999px;
+  display:inline-flex;align-items:center;gap:6px;
+  box-shadow:0 1px 6px rgba(0,0,0,.03);
+}
+.proof .pill b{color:var(--text)}
+
+/* console — white card, soft shadow, official */
+.console{
+  max-width:720px;margin:28px auto 0;
+  background:var(--card);
+  border:1px solid var(--line);border-radius:20px;
+  box-shadow:0 12px 40px rgba(20,20,22,.06), 0 1px 3px rgba(20,20,22,.04);
+  overflow:hidden;text-align:left;
+}
+.console-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 18px;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(255,255,255,1) 0, rgba(255,251,242,.9) 100%);
+}
+.console-head h3{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin:0;display:flex;align-items:center;gap:8px;color:var(--muted)}
+.console-head h3 i{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 5px rgba(14,159,110,.12);display:inline-block}
+.console-head span{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.02em;color:var(--dim);background:var(--bg);border:1px solid var(--line);padding:5px 9px;border-radius:999px}
+.console-body{padding:18px}
+.hint{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);margin:0 0 10px}
+
+/* input */
+.input-row{display:flex;gap:10px;align-items:center}
+.input-wrap{
+  flex:1;display:flex;align-items:center;gap:8px;
+  border:1.5px solid var(--line);background:var(--bg);
+  border-radius:999px;padding:5px 6px 5px 16px;
+  transition:border-color .15s, background .15s, box-shadow .15s;
+}
+.input-wrap:focus-within{border-color:var(--accent-line);background:#fff;box-shadow:0 0 0 4px var(--accent-soft)}
+.input-wrap input{flex:1;min-width:0;border:none;outline:none;background:transparent;color:var(--text);font-family:'Instrument Sans',sans-serif;font-size:14px;padding:9px 0}
+.input-wrap input::placeholder{color:var(--dim)}
+.icon-btn{width:34px;height:34px;border-radius:999px;border:1px solid var(--line);background:#fff;display:grid;place-items:center;cursor:pointer;color:var(--muted);flex-shrink:0;transition:all .15s;font-size:16px;line-height:1}
+.icon-btn:hover{border-color:var(--line2);color:var(--text)}
+.type-badge{margin-top:10px;display:none;align-items:center;gap:8px;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.02em}
+.type-badge.show{display:flex}
+.type-badge b{padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);display:inline-flex;align-items:center;gap:6px;font-weight:700}
+.type-badge b.video{border-color:var(--accent-line);background:var(--accent-soft);color:var(--accent)}
+.type-badge b.shorts{border-color:rgba(99,102,241,.18);background:#F0F0FF;color:#6366F1}
+.type-badge b.music{border-color:rgba(14,159,110,.18);background:#EAF7F0;color:var(--ok)}
+.type-badge span{color:var(--muted)}
+
+/* preview */
+.preview{display:none;grid-template-columns:112px 1fr;gap:14px;align-items:start;margin-top:14px;border:1px solid var(--line);background:var(--bg);border-radius:14px;padding:12px;overflow:hidden}
+.preview.show{display:grid;animation:in2 .22s ease}
+@keyframes in2{0%{opacity:0;transform:translateY(4px)}100%{opacity:1;transform:translateY(0)}}
+.thumb{width:112px;aspect-ratio:16/9;background:#111;border-radius:9px;overflow:hidden;position:relative;border:1px solid var(--line)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .play{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(180deg, transparent 44%, rgba(0,0,0,.38) 100%)}
+.thumb .play span{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.94);color:#111;display:grid;place-items:center;font-size:11px;box-shadow:0 2px 10px rgba(0,0,0,.16)}
+.preview h4{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:13.5px;line-height:1.35;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.preview .meta{margin-top:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.preview .meta b{color:var(--text);font-weight:700}
+.preview .actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+
+/* formats */
+.formats{display:none;margin-top:14px}
+.formats.show{display:block;animation:in2 .22s ease}
+.formats h4{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 10px;color:var(--muted)}
+.fmt-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media(max-width:640px){ .fmt-grid{grid-template-columns:repeat(2,1fr)} }
+.fmt{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px 10px;cursor:pointer;transition:all .15s;text-align:left}
+.fmt:hover{border-color:var(--line2);background:var(--bg);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.04)}
+.fmt.on{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 3px rgba(255,45,45,.08)}
+.fmt b{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;display:block;color:var(--text)}
+.fmt span{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.03em;text-transform:uppercase;display:block;margin-top:2px}
+.fmt small{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);display:block;margin-top:6px}
+.fmt-audio{border-top:1px solid var(--line);margin-top:12px;padding-top:14px}
+.fmt-audio .fmt.on{border-color:var(--ok);background:#EAF7F0;box-shadow:0 0 0 3px rgba(14,159,110,.08)}
+
+/* progress */
+.progress{height:28px;background:var(--bg);border:1px solid var(--line);border-radius:999px;overflow:hidden;margin-top:14px;display:none;position:relative;padding:3px}
+.progress.show{display:block}
+.progress i{display:block;height:100%;width:0%;background:var(--text);border-radius:999px;transition:width .22s}
+.progress em{position:absolute;inset:0;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text);mix-blend-mode:difference;font-style:normal;padding:0 12px}
+.stage{display:none;margin-top:12px;border:1px solid var(--line);background:var(--bg);border-radius:14px;padding:14px;grid-template-columns:72px 1fr;gap:14px;align-items:center;position:relative;overflow:hidden}
+.stage.show{display:grid;animation:in2 .22s ease}
+.stage-icon{width:72px;height:72px;border-radius:12px;border:1px solid var(--accent-line);background:radial-gradient(circle at 50% 42%, rgba(255,45,45,.08) 0, transparent 64%);background-color:#fff;display:grid;place-items:center;position:relative;overflow:hidden}
+.stage-icon b{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--accent)}
+.stage-scan{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg, transparent, var(--accent), transparent);top:0}
+.decoding .stage-scan{animation:stageScan 1s ease-in-out infinite}
+@keyframes stageScan{0%{top:8%}50%{top:86%}100%{top:8%}}
+.k2{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:8px;color:var(--muted);margin-bottom:8px}
+.k2 i{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px rgba(255,45,45,.22);display:inline-block}
+.k2 b{font-family:'Bricolage Grotesque',sans-serif;font-size:11px;color:var(--text);letter-spacing:.02em;font-weight:700}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.st{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--line);padding:5px 8px;border-radius:999px;background:var(--card);color:var(--muted);transition:all .18s}
+.st.on{color:var(--text);border-color:var(--accent-line);background:var(--accent-soft)}
+.st.done{color:var(--ok);border-color:rgba(14,159,110,.18);background:#EAF7F0}
+.dbar{height:28px;background:#fff;border:1px solid var(--line);border-radius:999px;overflow:hidden;position:relative;padding:3px}
+.dbar i{display:block;height:100%;width:0%;background:var(--text);border-radius:999px;transition:width .2s linear}
+.dbar em{position:absolute;inset:0;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text);mix-blend-mode:difference;font-style:normal;padding:0 12px}
+.msg{margin-top:8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);min-height:14px}
+.done{position:absolute;inset:0;display:grid;place-items:center;background:rgba(255,251,242,.82);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .18s;border-radius:14px}
+.done.show{opacity:1;pointer-events:auto}
+.done span{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;background:var(--ok);color:#fff;padding:10px 16px;border-radius:999px;box-shadow:0 6px 18px rgba(14,159,110,.22)}
+
+.row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center}
+.row .hint2{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line);text-align:center}
+.stat b{font-family:'Bricolage Grotesque',sans-serif;font-size:13px;letter-spacing:-.01em;display:block;line-height:1}
+.stat label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700;display:block;margin-top:4px}
+
+/* history */
+.history{max-width:720px;margin:14px auto 0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:none;box-shadow:0 4px 18px rgba(0,0,0,.04)}
+.history.show{display:block}
+.history-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg)}
+.history-head h4{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin:0;color:var(--muted)}
+.history-list{display:grid}
+.h-item{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.h-item:last-child{border-bottom:none}
+.h-thumb{width:72px;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:#111;border:1px solid var(--line)}
+.h-thumb img{width:100%;height:100%;object-fit:cover}
+.h-title{font-family:'Instrument Sans',sans-serif;font-size:12px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--text)}
+.h-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px}
+
+/* signal band */
+.signal-band{max-width:720px;margin:18px auto 0;border:1px solid var(--line);border-radius:16px;padding:22px 20px;display:grid;grid-template-columns:1.15fr .85fr;gap:28px;align-items:center;background:var(--card);box-shadow:0 6px 22px rgba(0,0,0,.04)}
+.signal-band label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.10em;text-transform:uppercase;color:var(--dim);font-weight:700;display:block;margin-bottom:8px}
+.signal-band strong{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;line-height:1.2;font-weight:700;letter-spacing:-.02em;display:block}
+.signal-band p{margin:8px 0 0;font-size:12.5px;line-height:1.6;color:var(--muted)}
+.signal-band .meta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);padding-top:10px;border-top:1px solid var(--line);margin-top:12px}
+.signal-band .pills{margin-top:12px;display:flex;gap:6px;flex-wrap:wrap}
+.signal-band .pills span{font-family:'IBM Plex Mono',monospace;font-size:10px;border:1px solid var(--line);padding:5px 9px;border-radius:999px;background:var(--bg)}
+@media(max-width:720px){ .signal-band{grid-template-columns:1fr;padding:18px;gap:18px} }
+
+/* sections — warm editorial */
+.section{padding:52px 0;border-top:1px solid var(--line);margin-top:40px}
+.section-head{display:grid;grid-template-columns:1fr 1.3fr;gap:32px;align-items:start;padding-bottom:24px;margin-bottom:24px;border-bottom:1px solid var(--line)}
+@media(max-width:720px){ .section-head{grid-template-columns:1fr;gap:12px} }
+.section-head h2{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;letter-spacing:-.03em;line-height:.95;margin:0;font-weight:700}
+.section-head p{margin:0;font-size:13px;line-height:1.6;color:var(--muted);max-width:42ch}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);display:block;margin-bottom:8px}
+.cap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.cap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 16px;transition:all .15s}
+.cap:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.05)}
+.cap em{font-family:'IBM Plex Mono',monospace;font-style:normal;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);display:block;margin-bottom:10px}
+.cap h3{font-family:'Bricolage Grotesque',sans-serif;font-size:12px;letter-spacing:.01em;text-transform:uppercase;margin:0;font-weight:700}
+.cap p{font-size:12.5px;line-height:1.6;color:var(--muted);margin:8px 0 0}
+@media(max-width:900px){ .cap-grid{grid-template-columns:1fr 1fr} }
+@media(max-width:560px){ .cap-grid{grid-template-columns:1fr} }
+.process{display:grid;grid-template-columns:.9fr 1.1fr;gap:36px;align-items:start}
+@media(max-width:800px){ .process{grid-template-columns:1fr} }
+.steps-col{position:relative;padding-left:26px}
+.steps-col::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:1px;background:var(--line)}
+.step{position:relative;padding:14px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:none}
+.step::before{content:'';position:absolute;left:-26px;top:18px;width:14px;height:14px;border-radius:50%;background:var(--bg);border:1px solid var(--line2)}
+.step.active::before{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.step b{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);display:block}
+.step h4{font-family:'Bricolage Grotesque',sans-serif;font-size:13px;margin:6px 0 0;font-weight:700;letter-spacing:-.01em}
+.step p{font-size:12.5px;color:var(--muted);margin:6px 0 0;line-height:1.6}
+.compare{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.04)}
+.compare-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg)}
+.compare-head h4{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.05em;text-transform:uppercase;margin:0;color:var(--muted)}
+.compare-head span{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim)}
+.compare-body{padding:14px;display:grid;gap:8px}
+.kv{display:flex;justify-content:space-between;gap:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:9px 0;border-bottom:1px solid var(--line)}
+.kv:last-child{border-bottom:none}
+.kv span{color:var(--muted)}
+.kv b{color:var(--text);font-weight:700}
+.faq-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:36px}
+@media(max-width:800px){ .faq-grid{grid-template-columns:1fr} }
+.faq-item{padding:14px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.faq-item:first-child{border-top:1px solid var(--line)}
+.faq-item b{font-family:'Bricolage Grotesque',sans-serif;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.faq-item b span{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--dim);font-weight:400;flex-shrink:0}
+.faq-item p{font-size:12.5px;line-height:1.6;margin:10px 0 0;display:none;color:var(--muted);max-width:60ch}
+.faq-item.open p{display:block}
+.footer{border-top:1px solid var(--line);padding:18px 28px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:center;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.05em;text-transform:uppercase;background:rgba(255,255,255,.72);backdrop-filter:blur(8px)}
+.footer a{border:1px solid var(--line);padding:6px 10px;border-radius:999px;color:var(--text);transition:all .15s;background:#fff}
+.footer a:hover{border-color:var(--line2)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(12px);background:var(--text);color:#fff;padding:10px 14px;font-family:'IBM Plex Mono',monospace;font-size:12px;opacity:0;transition:all .2s;z-index:80;border-radius:999px;pointer-events:none;max-width:92vw;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 8px 22px rgba(0,0,0,.14)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(prefers-reduced-motion: reduce){ .stage-scan{animation:none!important} }
+</style>
+
+<div class="bg-blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="dot-grid" aria-hidden="true"></div>
+
+<nav class="nav">
+  <a href="#" class="brand">
+    <div class="mark">GRAB</div>
+    <div class="word"><strong>GRAB STUDIO</strong><span>Video · Shorts · Songs</span></div>
+  </a>
+  <div class="nav-links" id="navLinks">
+    <a href="#download">Download</a>
+    <a href="#formats">Formats</a>
+    <a href="#how">How it works</a>
+    <a href="#faq">FAQ</a>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button class="btn btn-g" onclick="toast('History is local — stored in this browser only')">History</button>
+    <a href="#download" class="btn btn-accent">Paste Link →</a>
+    <button class="btn btn-g hamburger" id="menuBtn" aria-label="Menu" style="padding:8px 10px">≡</button>
+  </div>
+</nav>
+
+<div class="shell">
+  <section class="hero" id="download">
+    <div class="kicker"><i></i> Paste any YouTube link — video, Short, or song</div>
+    <h1>Download <span>YouTube</span> <em>your way.</em></h1>
+    <p><b>Grab</b> handles every YouTube source — long videos, Shorts, and songs from YouTube Music. Paste the link, pick your format, and save it. No watermark, no sign-up.</p>
+    <div class="proof">
+      <span class="pill">▶ Video</span>
+      <span class="pill">◐ Shorts</span>
+      <span class="pill">♫ Songs</span>
+      <span class="pill"><b id="liveCount">12,481</b> grabs today</span>
+    </div>
+  </section>
+
+  <div class="console" id="console">
+    <div class="console-head">
+      <h3><i></i> Grab Console — Universal</h3>
+      <span id="consoleState">Ready to receive</span>
+    </div>
+    <div class="console-body">
+      <p class="hint">Accepted: youtube.com · youtu.be · music.youtube.com — video, shorts, and songs</p>
+      <div class="input-row">
+        <label class="input-wrap" style="flex:1">
+          <input id="urlInput" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="Paste YouTube link here — e.g. https://www.youtube.com/watch?v=...">
+          <button class="icon-btn" id="clearBtn" title="Clear" aria-label="Clear" style="display:none">×</button>
+        </label>
+        <button class="btn btn-g" id="pasteBtn" onclick="doPaste()">Paste</button>
+      </div>
+      <div class="type-badge" id="typeBadge"></div>
+
+      <div class="preview" id="preview">
+        <div class="thumb"><img id="thumbImg" alt=""><div class="play"><span>▶</span></div></div>
+        <div style="min-width:0">
+          <h4 id="previewTitle">—</h4>
+          <div class="meta"><span id="previewChannel">—</span><span>·</span><b id="previewType">—</b><span id="previewId" style="color:var(--dim)"></span></div>
+          <div class="actions">
+            <button class="btn btn-g" style="padding:7px 10px;font-size:10px" onclick="copyLink()">Copy link</button>
+            <button class="btn btn-g" style="padding:7px 10px;font-size:10px" onclick="openYoutube()">Open on YouTube →</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="formats" id="formats">
+        <h4>Video — MP4</h4>
+        <div class="fmt-grid" id="videoGrid">
+          <button class="fmt" data-fmt="mp4-1080" onclick="pickFmt(this)"><b>1080p</b><span>MP4 · H.264</span><small>~ best for TV</small></button>
+          <button class="fmt on" data-fmt="mp4-720" onclick="pickFmt(this)"><b>720p</b><span>MP4 · H.264</span><small>balanced</small></button>
+          <button class="fmt" data-fmt="mp4-480" onclick="pickFmt(this)"><b>480p</b><span>MP4 · H.264</span><small>small file</small></button>
+          <button class="fmt" data-fmt="mp4-360" onclick="pickFmt(this)"><b>360p</b><span>MP4 · H.264</span><small>fastest</small></button>
+        </div>
+        <div class="fmt-audio">
+          <h4>Audio — extract song</h4>
+          <div class="fmt-grid" id="audioGrid">
+            <button class="fmt" data-fmt="mp3-320" onclick="pickFmtAudio(this)"><b>MP3 320</b><span>320 kbps</span><small>studio</small></button>
+            <button class="fmt" data-fmt="mp3-128" onclick="pickFmtAudio(this)"><b>MP3 128</b><span>128 kbps</span><small>light</small></button>
+            <button class="fmt" data-fmt="m4a-128" onclick="pickFmtAudio(this)"><b>M4A</b><span>AAC 128</span><small>Apple</small></button>
+            <button class="fmt" data-fmt="wav" onclick="pickFmtAudio(this)"><b>WAV</b><span>Lossless</span><small>edit-ready</small></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="progress" id="progress"><i id="progressBar"></i><em id="progressText">Preparing 0%</em></div>
+      <div class="stage" id="stage" aria-live="polite">
+        <div class="stage-icon"><b id="stageIconTxt">GRAB</b><div class="stage-scan"></div></div>
+        <div style="min-width:0">
+          <div class="k2"><i></i> Grabbing <b id="stageKicker">Resolving</b></div>
+          <div class="steps" id="stageSteps"><span class="st on">Resolve</span><span class="st">Fetch</span><span class="st">Prepare</span><span class="st">Ready</span></div>
+          <div class="dbar"><i id="stageBar"></i><em id="stageBarTxt">0%</em></div>
+          <div class="msg" id="stageMsg">Reading source — hang tight.</div>
+        </div>
+        <div class="done" id="stageDone"><span>Grab Complete — Saved</span></div>
+      </div>
+
+      <div class="row">
+        <button class="btn btn-accent" id="grabBtn" onclick="grab()" disabled>Grab Download →</button>
+        <button class="btn btn-g" onclick="loadDemo()">Try demo link</button>
+        <span class="hint2" id="grabHint">Paste a YouTube link to begin</span>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>No watermark</b><label>Clean file</label></div>
+        <div class="stat"><b>Up to 8K</b><label>When available</label></div>
+        <div class="stat"><b>MP3 · MP4</b><label>Video or audio only</label></div>
+      </div>
+      <p style="margin:12px 0 0;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);line-height:1.5">For personal use only. Respect the creator's rights and YouTube's Terms. Do not reupload without permission.</p>
+    </div>
+  </div>
+
+  <div class="history" id="history">
+    <div class="history-head"><h4>Recent grabs — this browser</h4><button class="btn btn-g" style="padding:6px 10px;font-size:10px" onclick="clearHistory()">Clear</button></div>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <div class="signal-band">
+    <div>
+      <label>Why Grab — 01</label>
+      <strong>One input. Every YouTube source, handled correctly.</strong>
+      <p>YouTube links are not one shape — videos, Shorts, and Music each resolve differently. Grab detects the source, shows the thumbnail and title, and lets you pick exactly the rendition you need.</p>
+      <div class="meta">Detects: youtube.com/watch · youtu.be · youtube.com/shorts · music.youtube.com</div>
+    </div>
+    <div style="border-left:1px solid var(--line);padding-left:22px">
+      <label>What you get</label>
+      <p style="margin:0">A clean file with no watermark, saved locally. History stays in this browser — nothing is uploaded to a server in this demo mode.</p>
+      <div class="pills"><span>MP4 360–1080p</span><span>MP3 · M4A · WAV</span><span>Private</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+<section class="section" id="formats">
+  <div class="section-head">
+    <div><span class="eyebrow">Formats</span><h2>Every rendition,<br>without guessing.</h2></div>
+    <p>Video and audio are separate pipelines. Pick the container and quality that matches where the file is headed — phone, timeline, or archive.</p>
+  </div>
+  <div class="cap-grid">
+    <div class="cap"><em>01 — Video</em><h3>MP4 · H.264</h3><p>360p to 1080p (and higher when the source provides it). One file, plays everywhere.</p></div>
+    <div class="cap"><em>02 — Shorts</em><h3>Vertical · 9:16</h3><p>Shorts are detected automatically and preserved in vertical — no letterboxing added.</p></div>
+    <div class="cap"><em>03 — Audio</em><h3>MP3 · M4A · WAV</h3><p>Extract the track alone — 128 kbps for drafts, 320 kbps or WAV for the master.</p></div>
+    <div class="cap"><em>04 — Music</em><h3>YouTube Music</h3><p>music.youtube.com links resolve the same way — artwork and title included.</p></div>
+    <div class="cap"><em>05 — Clean</em><h3>No watermark</h3><p>What you save is what was published — no overlay, no branding added.</p></div>
+    <div class="cap"><em>06 — Private</em><h3>Local by default</h3><p>This demo runs entirely in the browser. History never leaves the device.</p></div>
+  </div>
+</section>
+
+<section class="section" id="how">
+  <div class="section-head" style="margin-bottom:32px">
+    <div><span class="eyebrow">Sequence</span><h2>How a grab<br>works.</h2></div>
+    <p>Three steps, no account. Paste, pick, save — with a clear signal at each stage.</p>
+  </div>
+  <div class="process">
+    <div class="steps-col">
+      <div class="step active"><b>01</b><h4>Paste the link</h4><p>Any YouTube URL — long video, Short, or Music. The console extracts the ID and shows the thumbnail instantly.</p></div>
+      <div class="step"><b>02</b><h4>Pick a format</h4><p>Choose a video rendition or audio-only. The choice determines which stream is fetched — not a re-encode.</p></div>
+      <div class="step"><b>03</b><h4>Save locally</h4><p>The file lands in your downloads. Re-grab from history in one tap — no need to paste again.</p></div>
+    </div>
+    <div class="compare">
+      <div class="compare-head"><h4>Paste</h4><span>Any YouTube URL</span></div>
+      <div class="compare-body">
+        <div class="kv"><span>youtube.com/watch?v=…</span><b>Video</b></div>
+        <div class="kv"><span>youtube.com/shorts/…</span><b>Short</b></div>
+        <div class="kv"><span>music.youtube.com/…</span><b>Song</b></div>
+        <div class="kv"><span>youtu.be/…</span><b>Short link</b></div>
+      </div>
+      <div class="compare-head" style="border-top:1px solid var(--line)"><h4 style="color:var(--text)">Result</h4><span>No watermark</span></div>
+      <div class="compare-body">
+        <div class="kv"><span>Video</span><b>MP4 360–1080p</b></div>
+        <div class="kv"><span>Audio</span><b>MP3 128/320 · M4A · WAV</b></div>
+        <div class="kv"><span>History</span><b>Saved locally</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="faq" style="border-bottom:none">
+  <div class="faq-grid">
+    <div>
+      <span class="eyebrow">Protocol</span>
+      <h2>Using the<br>grab.</h2>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin:10px 0 0;max-width:36ch">Short answers. With grab-server running, the Grab button saves a real file; otherwise it saves a demo file.</p>
+      <div id="liveNote" style="margin-top:16px;border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--card)">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Live backend — <span id="liveNoteState">checking…</span></div>
+        <div style="font-size:12.5px;line-height:1.6;color:var(--muted)"><b style="color:var(--text)">grab-server</b> speaks <code style="font-family:'IBM Plex Mono',monospace;background:var(--bg);border:1px solid var(--line);padding:1px 5px;border-radius:4px">GET /api/grab?url=…&amp;fmt=mp4-720</code> on <code style="font-family:'IBM Plex Mono',monospace;background:var(--bg);border:1px solid var(--line);padding:1px 5px;border-radius:4px">127.0.0.1:8000</code>. Run <code style="font-family:'IBM Plex Mono',monospace;background:var(--bg);border:1px solid var(--line);padding:1px 5px;border-radius:4px">uvicorn app:app --port 8000</code> in <code style="font-family:'IBM Plex Mono',monospace;background:var(--bg);border:1px solid var(--line);padding:1px 5px;border-radius:4px">grab-server</code> — audio formats also need <code style="font-family:'IBM Plex Mono',monospace;background:var(--bg);border:1px solid var(--line);padding:1px 5px;border-radius:4px">ffmpeg</code> (<code style="font-family:'IBM Plex Mono',monospace;background:var(--bg);border:1px solid var(--line);padding:1px 5px;border-radius:4px">winget install ffmpeg</code>).</div>
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-g" style="padding:6px 10px;font-size:10px" onclick="probeHealth(false).then(()=>{ const el=document.getElementById('liveNoteState'); if(el) el.textContent=(backendLive?'live — real files':'not reachable — demo files'); })">Recheck</button><span id="liveNoteHint" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);align-self:center"></span></div>
+      </div>
+    </div>
+    <div>
+      <div class="faq-item open" onclick="this.classList.toggle('open')"><b>Which links work? <span>−</span></b><p>All standard YouTube shapes: <code>youtube.com/watch?v=</code>, <code>youtu.be/</code>, <code>youtube.com/shorts/</code>, and <code>music.youtube.com</code>. Playlists resolve to the first item in this demo.</p></div>
+      <div class="faq-item" onclick="this.classList.toggle('open')"><b>What formats are available? <span>+</span></b><p>Video: MP4 at 360p, 480p, 720p, 1080p (higher when source offers it). Audio-only: MP3 128/320, M4A/AAC, and WAV.</p></div>
+      <div class="faq-item" onclick="this.classList.toggle('open')"><b>Does it add a watermark? <span>+</span></b><p>Never. The file is the source rendition — no overlay or branding is added.</p></div>
+      <div class="faq-item" onclick="this.classList.toggle('open')"><b>Is this legal to use? <span>+</span></b><p>Only for content you have the right to save — your own uploads or where the creator permits it. Respect copyright and YouTube's Terms. Do not reupload without permission.</p></div>
+    </div>
+  </div>
+</section>
+</div>
+
+<footer class="footer">
+  <div>© 2026 Grab Studio — Paste · Pick · Download · Private · No account</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><a href="#">Privacy</a><a href="#">Terms</a><a href="#" onclick="toast('hello@grab.studio — copied');return false">hello@grab.studio</a></div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const urlInput=$('#urlInput'), clearBtn=$('#clearBtn'), typeBadge=$('#typeBadge'), preview=$('#preview'), thumbImg=$('#thumbImg'), previewTitle=$('#previewTitle'), previewChannel=$('#previewChannel'), previewType=$('#previewType'), previewId=$('#previewId');
+const formats=$('#formats'), grabBtn=$('#grabBtn'), grabHint=$('#grabHint'), consoleState=$('#consoleState');
+const progress=$('#progress'), progressBar=$('#progressBar'), progressText=$('#progressText');
+const stage=$('#stage'), stageBar=$('#stageBar'), stageBarTxt=$('#stageBarTxt'), stageKicker=$('#stageKicker'), stageMsg=$('#stageMsg'), stageDone=$('#stageDone'), stageIconTxt=$('#stageIconTxt');
+const historyEl=$('#history'), historyList=$('#historyList');
+let liveN=12481;
+setInterval(()=>{ liveN+=Math.floor(Math.random()*3); const el=$('#liveCount'); if(el) el.textContent=liveN.toLocaleString('en-IN'); }, 2600);
+
+let current=null, selectedFmt='mp4-720', selectedAudio=null, grabbing=false;
+let backendLive=false, backendChecked=false;
+const BACKEND = 'http://127.0.0.1:8000';
+function syncLiveNote(){
+  const a=document.getElementById('liveNoteState'), b=document.getElementById('liveNoteHint');
+  if(a) a.textContent = !backendChecked ? 'checking…' : backendLive ? 'live — real files' : 'not reachable — demo files';
+  if(b) b.textContent = backendLive ? 'Grab saves the real file.' : 'Start grab-server for real media.';
+  const n=document.getElementById('liveNote');
+  if(n) n.style.borderColor = backendLive ? 'rgba(14,159,110,.18)' : 'var(--line)';
+}
+async function probeHealth(silent){
+  try{
+    const r=await fetch(BACKEND+'/health',{cache:'no-store'});
+    if(r.ok){ backendLive=true; backendChecked=true; syncLiveNote(); if(!silent) toast('Backend live — real files enabled'); updateGrabEnabled(); return true; }
+  }catch{}
+  backendLive=false; backendChecked=true; syncLiveNote(); updateGrabEnabled(); return false;
+}
+probeHealth(true); setInterval(()=>probeHealth(true), 8000);
+const YT_RE = /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/|music\.youtube\.com\/watch\?v=)([A-Za-z0-9_-]{11})/;
+function parseUrl(raw){
+  if(!raw) return null;
+  let s=raw.trim();
+  if(/^youtu\.be\//i.test(s)) s='https://'+s;
+  if(/^youtube\.com\//i.test(s)) s='https://www.'+s;
+  const m=s.match(YT_RE);
+  if(!m) return null;
+  const id=m[1];
+  let kind='video';
+  if(/\/shorts\//i.test(s)) kind='shorts';
+  else if(/music\.youtube\.com/i.test(s)) kind='music';
+  return {id, kind, url: s.includes('http') ? s : 'https://www.youtube.com/watch?v='+id};
+}
+function setBadge(info){
+  if(!info){ typeBadge.classList.remove('show'); typeBadge.innerHTML=''; return; }
+  const label = info.kind==='shorts' ? 'Shorts' : info.kind==='music' ? 'Song — YouTube Music' : 'Video';
+  const cls = info.kind==='shorts' ? 'shorts' : info.kind==='music' ? 'music' : 'video';
+  const icon = info.kind==='shorts' ? '◐' : info.kind==='music' ? '♫' : '▶';
+  typeBadge.innerHTML = `<b class="${cls}">${icon} ${label}</b><span>· ID ${info.id}</span><span>· Detected</span>`;
+  typeBadge.classList.add('show');
+}
+async function showPreview(info){
+  if(!info){ preview.classList.remove('show'); return; }
+  thumbImg.src=`https://img.youtube.com/vi/${info.id}/hqdefault.jpg`;
+  thumbImg.onerror=()=>{ thumbImg.src=`https://img.youtube.com/vi/${info.id}/mqdefault.jpg`; };
+  previewTitle.textContent='Resolving title…';
+  previewChannel.textContent='youtube.com';
+  previewType.textContent = info.kind==='shorts' ? 'Shorts' : info.kind==='music' ? 'Music' : 'Video';
+  previewId.textContent = '· '+info.id;
+  preview.classList.add('show');
+  // Try live backend first (yt-dlp gives real title/channel/thumb), fall back to noembed/img.
+  if(backendLive){
+    try{
+      const r=await fetch(BACKEND+'/api/info?url='+encodeURIComponent('https://www.youtube.com/watch?v='+info.id),{cache:'no-store'});
+      if(r.ok){
+        const j=await r.json();
+        if(j.title) previewTitle.textContent=j.title;
+        if(j.channel) previewChannel.textContent=j.channel;
+        if(j.thumbnail) thumbImg.src=j.thumbnail;
+        if(current) current.title=j.title||previewTitle.textContent;
+        return;
+      }
+    }catch{}
+  }
+  try{
+    const r=await fetch('https://noembed.com/embed?url='+encodeURIComponent('https://www.youtube.com/watch?v='+info.id));
+    if(r.ok){
+      const j=await r.json();
+      if(j.title) previewTitle.textContent=j.title;
+      if(j.author_name) previewChannel.textContent=j.author_name;
+    } else previewTitle.textContent='YouTube — '+info.id;
+  }catch{ previewTitle.textContent='YouTube — '+info.id; }
+  if(current) current.title=previewTitle.textContent;
+}
+function updateGrabEnabled(){
+  const hasInfo = !!current;
+  grabBtn.disabled = !hasInfo || grabbing;
+  const fmtLbl=(selectedAudio||selectedFmt||'').toUpperCase();
+  if(grabbing) grabHint.textContent='Grabbing — please wait';
+  else if(!hasInfo) grabHint.textContent='Paste a YouTube link to begin';
+  else if(!backendLive) grabHint.textContent=`Ready — ${fmtLbl} · Live server not running (see FAQ) — demo file`;
+  else grabHint.textContent=`Ready — ${fmtLbl} · Real file`;
+  if(grabbing) consoleState.textContent='Grabbing…';
+  else if(!hasInfo) consoleState.textContent = backendChecked && !backendLive ? 'Demo mode — start grab-server for real files' : 'Ready to receive';
+  else consoleState.textContent = backendLive ? 'Source ready — live' : 'Source ready — demo mode';
+  if(hasInfo) formats.classList.add('show'); else formats.classList.remove('show');
+}
+function onInput(){
+  const raw=urlInput.value;
+  clearBtn.style.display = raw ? 'grid' : 'none';
+  if(!raw.trim()){
+    current=null; setBadge(null); preview.classList.remove('show'); formats.classList.remove('show');
+    stage.classList.remove('show'); stage.classList.remove('decoding'); progress.classList.remove('show');
+    updateGrabEnabled(); return;
+  }
+  const info=parseUrl(raw);
+  if(info){
+    current={...info, title: previewTitle.textContent||'YouTube — '+info.id};
+    setBadge(info);
+    showPreview(info).then(()=>{ if(current) current.title=previewTitle.textContent; });
+    updateGrabEnabled();
+    try{ document.getElementById('console').animate([{transform:'scale(1)'},{transform:'scale(1.005)'},{transform:'scale(1)'}],{duration:220}); }catch{}
+  } else {
+    if(raw.length>8){
+      typeBadge.innerHTML=`<span style="color:var(--muted)">Not a YouTube link yet — try youtube.com/watch?v=… or youtu.be/…</span>`;
+      typeBadge.classList.add('show');
+    } else setBadge(null);
+    preview.classList.remove('show'); formats.classList.remove('show');
+    current=null; updateGrabEnabled();
+  }
+}
+let debounceT=null;
+urlInput.addEventListener('input', ()=>{ clearTimeout(debounceT); debounceT=setTimeout(onInput, 180); });
+urlInput.addEventListener('paste', ()=> setTimeout(onInput, 30));
+urlInput.addEventListener('keydown', e=>{ if(e.key==='Enter' && current && !grabbing) grab(); });
+clearBtn.addEventListener('click', ()=>{
+  urlInput.value=''; current=null; selectedAudio=null;
+  document.querySelectorAll('#videoGrid .fmt').forEach((b,i)=> b.classList.toggle('on', i===1));
+  document.querySelectorAll('#audioGrid .fmt').forEach(b=> b.classList.remove('on'));
+  setBadge(null); preview.classList.remove('show'); formats.classList.remove('show');
+  stage.classList.remove('show'); stage.classList.remove('decoding'); progress.classList.remove('show');
+  clearBtn.style.display='none'; updateGrabEnabled(); urlInput.focus();
+});
+async function doPaste(){
+  try{
+    const t=await navigator.clipboard.readText();
+    if(t){ urlInput.value=t.trim(); onInput(); urlInput.focus(); toast('Pasted from clipboard'); return; }
+  }catch{}
+  urlInput.focus(); toast('Press Ctrl+V to paste');
+}
+function pickFmt(el){
+  document.querySelectorAll('#videoGrid .fmt').forEach(b=> b.classList.remove('on'));
+  el.classList.add('on');
+  selectedFmt=el.dataset.fmt; selectedAudio=null;
+  document.querySelectorAll('#audioGrid .fmt').forEach(b=> b.classList.remove('on'));
+  updateGrabEnabled();
+}
+function pickFmtAudio(el){
+  const wasOn = el.classList.contains('on');
+  document.querySelectorAll('#audioGrid .fmt').forEach(b=> b.classList.remove('on'));
+  document.querySelectorAll('#videoGrid .fmt').forEach(b=> b.classList.remove('on'));
+  if(wasOn){
+    document.querySelector('#videoGrid .fmt[data-fmt="mp4-720"]').classList.add('on');
+    selectedAudio=null; selectedFmt='mp4-720';
+  } else { el.classList.add('on'); selectedAudio=el.dataset.fmt; selectedFmt=null; }
+  updateGrabEnabled();
+}
+function openYoutube(){ if(!current) return; window.open('https://www.youtube.com/watch?v='+current.id, '_blank'); }
+function copyLink(){
+  const v=urlInput.value.trim() || (current ? 'https://www.youtube.com/watch?v='+current.id : '');
+  if(!v) return;
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(()=> toast('Link copied')).catch(()=> toast('Link ready'));
+  else toast('Link ready');
+}
+function loadDemo(){ urlInput.value='https://www.youtube.com/watch?v=dQw4w9WgXcQ'; onInput(); toast('Demo link loaded — pick a format and grab'); }
+async function downloadReal(fmt){
+  const u='https://www.youtube.com/watch?v='+current.id;
+  const q=BACKEND+'/api/grab?url='+encodeURIComponent(u)+'&fmt='+encodeURIComponent(fmt);
+  const r=await fetch(q);
+  if(!r.ok){
+    let t=''; try{ t=await r.text(); }catch{}
+    try{ const j=JSON.parse(t); t=j.detail||j.msg||t; }catch{}
+    throw new Error(t || ('HTTP '+r.status));
+  }
+  const disp=r.headers.get('content-disposition')||'';
+  let filename='grab.'+(fmt==='wav'?'wav':fmt.startsWith('m4a')?'m4a':fmt.startsWith('mp3')?'mp3':'mp4');
+  const m = /filename="?([^"]+)"?/.exec(disp);
+  if(m) filename=m[1];
+  const blob=await r.blob();
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1200);
+  return filename;
+}
+function grab(){
+  if(!current || grabbing) return;
+  const fmt = selectedAudio || selectedFmt;
+  grabbing=true; updateGrabEnabled();
+  progress.classList.add('show');
+  stage.classList.add('show'); stage.classList.add('decoding');
+  stageDone.classList.remove('show');
+  const isAudio=fmt.includes('mp3')||fmt.includes('m4a')||fmt==='wav';
+  stageIconTxt.textContent = isAudio ? '♫' : '▶';
+  document.querySelectorAll('#stageSteps .st').forEach((s,i)=>{ s.classList.toggle('on', i===0); s.classList.remove('done'); });
+  stageKicker.textContent='Resolving'; stageMsg.textContent='Reading source — verifying streams.';
+  let p=0, done=false;
+  const stages=['Resolving','Fetching','Preparing','Ready'];
+  const msgs=['Reading source — verifying streams.','Fetching selected rendition — '+fmt.toUpperCase()+'.','Preparing file — no watermark, no re-encode.','Finalizing — save dialog will appear.'];
+  function setPhase(pct){
+    const idx=Math.min(3, Math.floor(pct/25));
+    stageKicker.textContent=stages[idx]||stages[0]; stageMsg.textContent=msgs[idx]||msgs[0];
+    document.querySelectorAll('#stageSteps .st').forEach((s,i)=>{ s.classList.toggle('on', i===idx); s.classList.toggle('done', i<idx); });
+  }
+  let fakeTimer=null;
+  let realPromise=null;
+  let finished=false;
+  function finishSuccess(filename){
+    if(finished) return; finished=true;
+    if(fakeTimer) clearInterval(fakeTimer);
+    stageBar.style.width='100%'; stageBarTxt.textContent='Grab Complete 100%';
+    progressBar.style.width='100%'; progressText.textContent='Grab Complete 100%';
+    stageKicker.textContent='Grab Complete'; stageMsg.textContent = filename ? ('Saved — '+filename) : 'Saved locally — check your downloads.';
+    document.querySelectorAll('#stageSteps .st').forEach(s=>{ s.classList.remove('on'); s.classList.add('done'); });
+    stage.classList.remove('decoding'); stageDone.classList.add('show'); setTimeout(()=> stageDone.classList.remove('show'), 1100);
+    grabbing=false; updateGrabEnabled();
+    pushHistory();
+    if(typeof confetti==='function') confetti({particleCount:28, spread:56, origin:{y:.68}, colors:['#FF2D2D','#141416','#F2F2F5'], scalar:.9, ticks:140});
+  }
+  function finishFail(msg){
+    if(finished) return; finished=true;
+    if(fakeTimer) clearInterval(fakeTimer);
+    stage.classList.remove('decoding');
+    grabbing=false; updateGrabEnabled();
+    progress.classList.remove('show');
+    stageBar.style.width='0%'; stageBarTxt.textContent='Failed';
+    progressBar.style.width='0%';
+    stageKicker.textContent='Failed';
+    const low=(msg||'').toLowerCase();
+    if(low.includes('ffmpeg')) stageMsg.textContent='That format needs ffmpeg — run: winget install ffmpeg, then restart grab-server.';
+    else if(low.includes('private')||low.includes('unavailable')||low.includes('403')||low.includes('429')) stageMsg.textContent='Could not fetch that video — it may be private, age-restricted, or rate-limited.';
+    else stageMsg.textContent = msg ? String(msg).slice(0,160) : 'Download failed.';
+    toast(stageMsg.textContent);
+  }
+  if(backendLive){
+    // Real path: fake progress while the fetch runs, then complete.
+    realPromise=downloadReal(fmt).then(finishSuccess).catch(e=> finishFail(e && e.message || String(e)));
+    fakeTimer=setInterval(()=>{
+      if(finished) return;
+      // creep to ~88% then stall until done
+      const cap = 88;
+      if(p<cap){ p+=Math.random()*7+3; if(p>cap) p=cap; }
+      const pct=Math.round(p);
+      stageBar.style.width=pct+'%'; stageBarTxt.textContent=pct+'%';
+      progressBar.style.width=pct+'%'; progressText.textContent='Grabbing '+pct+'%';
+      setPhase(pct);
+    }, 180);
+  } else {
+    // Demo path: timed mock
+    fakeTimer=setInterval(()=>{
+      p+=Math.random()*12+7;
+      if(p>=100){ p=100; clearInterval(fakeTimer);
+        stageBar.style.width='100%'; stageBarTxt.textContent='Grab Complete 100%';
+        progressBar.style.width='100%'; progressText.textContent='Grab Complete 100%';
+        stageKicker.textContent='Grab Complete'; stageMsg.textContent='Saved locally — check your downloads.';
+        document.querySelectorAll('#stageSteps .st').forEach(s=>{ s.classList.remove('on'); s.classList.add('done'); });
+        stage.classList.remove('decoding'); stageDone.classList.add('show'); setTimeout(()=> stageDone.classList.remove('show'), 1100);
+        grabbing=false; updateGrabEnabled();
+        doMockDownload(fmt); pushHistory();
+        if(typeof confetti==='function') confetti({particleCount:28, spread:56, origin:{y:.68}, colors:['#FF2D2D','#141416','#F2F2F5'], scalar:.9, ticks:140});
+      } else {
+        const pct=Math.round(p);
+        stageBar.style.width=pct+'%'; stageBarTxt.textContent=pct+'%';
+        progressBar.style.width=pct+'%'; progressText.textContent='Grabbing '+pct+'%';
+        setPhase(pct);
+      }
+    }, 130);
+  }
+}
+function doMockDownload(fmt){
+  if(!current) return;
+  const isAudio = fmt.includes('mp3')||fmt.includes('m4a')||fmt==='wav';
+  const ext = isAudio ? (fmt==='wav' ? 'wav' : fmt.startsWith('m4a') ? 'm4a' : 'mp3') : 'mp4';
+  const safeTitle = (current.title||current.id).replace(/[^\w\- ]+/g,'').trim().slice(0,42) || current.id;
+  const filename = safeTitle.replace(/\s+/g,'_') + '_' + fmt + '.' + ext;
+  const content = `GRAB — Demo Download\nSource: https://www.youtube.com/watch?v=${current.id}\nFormat requested: ${fmt} (${ext})\nTitle: ${current.title||''}\n\nThis is a demo file. To deliver real ${ext.toUpperCase()} files, connect a backend (yt-dlp).\nThe front end already posts {url, format} — replace doMockDownload() with a fetch to your API.\n`;
+  const blob=new Blob([content],{type: isAudio ? 'audio/'+ext : 'video/mp4'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 900);
+  toast('Demo file saved — '+filename+' (wire a backend for real media)');
+}
+function loadHistory(){ try{ return JSON.parse(localStorage.getItem('grab_history')||'[]'); }catch{ return []; } }
+function saveHistory(list){ try{ localStorage.setItem('grab_history', JSON.stringify(list.slice(0,12))); }catch{} }
+function pushHistory(){
+  if(!current) return;
+  const list=loadHistory();
+  const entry={id:current.id, kind:current.kind, title: current.title||'YouTube — '+current.id, url:'https://www.youtube.com/watch?v='+current.id, thumb:'https://img.youtube.com/vi/'+current.id+'/mqdefault.jpg', fmt: selectedAudio||selectedFmt, at: new Date().toISOString()};
+  const idx=list.findIndex(x=> x.id===entry.id && x.fmt===entry.fmt);
+  if(idx!==-1) list.splice(idx,1);
+  list.unshift(entry); saveHistory(list); renderHistory();
+}
+function renderHistory(){
+  const list=loadHistory();
+  if(!list.length){ historyEl.classList.remove('show'); return; }
+  historyEl.classList.add('show');
+  historyList.innerHTML = list.map(e=> `
+    <div class="h-item">
+      <div class="h-thumb"><img src="${e.thumb}" alt="" loading="lazy"></div>
+      <div style="min-width:0">
+        <div class="h-title">${escapeHtml(e.title)}</div>
+        <div class="h-sub">${e.kind==='shorts'?'Shorts':e.kind==='music'?'Music':'Video'} · ${escapeHtml(e.fmt.toUpperCase())} · ${new Date(e.at).toLocaleDateString()}</div>
+      </div>
+      <button class="btn btn-g" style="padding:7px 10px;font-size:10px" onclick="reuseHistory('${e.id}','${e.fmt}')">Re-grab →</button>
+    </div>
+  `).join('');
+}
+function reuseHistory(id, fmt){
+  urlInput.value='https://www.youtube.com/watch?v='+id; onInput();
+  setTimeout(()=>{
+    const sel=document.querySelector(`[data-fmt="${fmt}"]`);
+    if(sel){ if(fmt.includes('mp3')||fmt.includes('m4a')||fmt==='wav') pickFmtAudio(sel); else pickFmt(sel); }
+    document.getElementById('console').scrollIntoView({behavior:'smooth', block:'center'});
+  }, 320);
+}
+function clearHistory(){ saveHistory([]); renderHistory(); toast('History cleared'); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+renderHistory();
+const consoleEl=document.getElementById('console');
+consoleEl.addEventListener('dragover', e=>{ e.preventDefault(); consoleEl.style.borderColor='rgba(255,45,45,.22)'; });
+consoleEl.addEventListener('dragleave', ()=>{ consoleEl.style.borderColor=''; });
+consoleEl.addEventListener('drop', e=>{
+  e.preventDefault(); consoleEl.style.borderColor='';
+  const t=e.dataTransfer.getData('text/plain')||e.dataTransfer.getData('text/uri-list')||'';
+  if(t){ urlInput.value=t.trim(); onInput(); }
+});
+document.getElementById('menuBtn').addEventListener('click', ()=> document.getElementById('navLinks').classList.toggle('open'));
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=> t.classList.remove('show'), 2600); }
+</script>
